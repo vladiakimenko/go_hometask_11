@@ -29,13 +29,25 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		parsedBody, ok := api.ParseBody[models.TaskCreateBody](r)
 		if !ok {
-			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusBadRequest,
+					Message: "invalid JSON body",
+				},
+			)
 			return
 		}
 		result, err := h.Store.Create(parsedBody.ToDTO(nil).(models.Task))
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Failed to dump the task", http.StatusInternalServerError)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusInternalServerError,
+					Message: "failed to dump the task",
+				},
+			)
 			return
 		}
 		api.SerializeResponse(w, result)
@@ -45,20 +57,27 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 // /tasks/{id} (GET, PUT, PATCH, DELETE)
 func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 2 || parts[0] != "tasks" { // do I really need the seond part?
-		http.NotFound(w, r)
-		return
-	}
-	taskID, err := strconv.Atoi(parts[1])
+	path := strings.TrimPrefix(r.URL.Path, "/tasks/")
+	taskID, err := strconv.Atoi(path)
 	if err != nil {
-		http.NotFound(w, r)
+		api.WriteError(
+			w,
+			api.ErrorResponse{
+				Status:  http.StatusBadRequest,
+				Message: "invalid object ID",
+			},
+		)
 		return
 	}
-
 	existingTask, ok := h.Store.Get(taskID)
 	if !ok {
-		http.NotFound(w, r)
+		api.WriteError(
+			w,
+			api.ErrorResponse{
+				Status:  http.StatusNotFound,
+				Message: "requested object does not exist",
+			},
+		)
 		return
 	}
 
@@ -70,13 +89,25 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		parsedBody, ok := api.ParseBody[models.TaskReplaceBody](r)
 		if !ok {
-			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusBadRequest,
+					Message: "invalid JSON body",
+				},
+			)
 			return
 		}
 		result, err := h.Store.Update(taskID, parsedBody.ToDTO(existingTask).(models.Task))
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Failed to replace the task", http.StatusInternalServerError)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusInternalServerError,
+					Message: "failed to replace the task",
+				},
+			)
 			return
 		}
 		api.SerializeResponse(w, result)
@@ -84,13 +115,25 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPatch:
 		parsedBody, ok := api.ParseBody[models.TaskUpdateBody](r)
 		if !ok {
-			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusBadRequest,
+					Message: "invalid JSON body",
+				},
+			)
 			return
 		}
 		result, err := h.Store.Update(taskID, parsedBody.ToDTO(existingTask).(models.Task))
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Failed to replace the task", http.StatusInternalServerError)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusInternalServerError,
+					Message: "failed to replace the task",
+				},
+			)
 			return
 		}
 		api.SerializeResponse(w, result)
@@ -99,7 +142,13 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 		err = h.Store.Delete(taskID)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Failed to delete the task", http.StatusInternalServerError)
+			api.WriteError(
+				w,
+				api.ErrorResponse{
+					Status:  http.StatusInternalServerError,
+					Message: "failed to delete the task",
+				},
+			)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
